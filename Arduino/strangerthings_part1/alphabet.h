@@ -3,9 +3,9 @@
 
 struct colorCode {
   char letter;
-  int red;
-  int green;
-  int blue;
+  unsigned int red;
+  unsigned int green;
+  unsigned int blue;
 };
 
 struct colorCode alphabet[26] = {

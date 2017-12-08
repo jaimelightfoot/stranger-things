@@ -58,20 +58,15 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ80
 byte byteRead;
 
 void setup() {
-  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
-#if defined (__AVR_ATtiny85__)
-  if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
-#endif
-  // End of trinket special code
-
   Serial.begin(115200);
   delay(10);
 
   WifiConnectionDebugPrintout();
 
+  // Connect our callback function to the ST messages subscription
   STmessages.setCallback(STmessagesCallback);
 
-  // Setup MQTT subscription for onoff feed.
+  // Setup MQTT subscription for ST messages.
   mqtt.subscribe(&STmessages);
 
   pixels.begin(); // This initializes the NeoPixel library.
@@ -101,21 +96,20 @@ void STmessagesCallback(char *data, uint16_t len) {
      byteRead = data[i];
      if (isLowerCase(byteRead)) {
         int j = getIndexOfLetter(byteRead);
-        int red = alphabet[j].red;
-        int blue = alphabet[j].blue;
-        int green = alphabet[j].green;
-  
-        clearAllPixelsBut(j);
-  
-        pixels.setPixelColor(j, pixels.Color(red, green, blue)); // Moderately bright green color.
+        if (0 <= j && j < NUMPIXELS) {
+          int red = alphabet[j].red;
+          int blue = alphabet[j].blue;
+          int green = alphabet[j].green;
     
-        pixels.show();
-  
-        delay(1500);
-  
-        clearAllPixels();
-    
-        delay(250);
+          pixels.setPixelColor(j, pixels.Color(red, green, blue)); 
+          pixels.show();
+
+          // wait 1.5 seconds, clear it, 
+          // then wait 0.25 seconds before the next char
+          delay(1500);
+          clearAllPixels();
+          delay(250);
+        }
       } 
   }
 }
@@ -127,7 +121,7 @@ void loop() {
   MQTT_connect();
 
   // this is our 'wait for incoming subscription packets' busy subloop
-  // try to spend your time here
+  // note:  waiting for 10 seconds means that we'll miss some messages
   mqtt.processPackets(10000);
 
   if(! mqtt.ping()) {
@@ -167,14 +161,6 @@ int getIndexOfLetter(char letter) {
     }
   }
   return 0;
-}
-
-void clearAllPixelsBut(int pixel) {
-  for(int i=0;i<NUMPIXELS;i++){
-    if (i != pixel) {
-      pixels.setPixelColor(i, pixels.Color(0, 0, 0));
-    }
-  }
 }
 
 void clearAllPixels() {
